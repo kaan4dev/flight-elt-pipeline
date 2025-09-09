@@ -74,3 +74,60 @@ def test_url_selenium():
             driver.quit()
 
 test_url_selenium()
+
+
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from bs4 import BeautifulSoup
+import time
+
+URL = 'https://www.skyscanner.net/transport/flights/ista/ankr/250915/?adultsv2=1&cabinclass=economy'
+
+options = Options()
+options.headless = False
+options.add_argument("--window-size=1920,1080")
+options.add_argument("--disable-blink-features=AutomationControlled")
+options.add_argument("start-maximized")
+options.add_argument(
+    "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "Chrome/114.0.5735.199 Safari/537.36"
+)
+
+service = Service('/Users/kaancakir/Library/CloudStorage/OneDrive-Kişisel/data/projects/flight-elt-pipeline/chromedriver')
+driver = webdriver.Chrome(service=service, options=options)
+
+driver.get(URL)
+
+try:
+    flight_cards = WebDriverWait(driver, 15).until(
+        EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div.FlightsTicket_container__NjliO"))
+    )
+except:
+    print("Uçuş kartları yüklenemedi veya Captcha var.")
+
+time.sleep(5)
+
+soup = BeautifulSoup(driver.page_source, 'html.parser')
+
+with open('skyscanner_page_selenium.html', 'w', encoding='utf-8') as f:
+    f.write(soup.prettify())
+
+flight_cards = soup.find_all('div', class_='FlightsTicket_container__NjliO')
+if flight_cards:
+    print(f"{len(flight_cards)} uçuş kartı bulundu!")
+    for i, card in enumerate(flight_cards[:5]):
+        print(f"Uçuş Kartı {i+1}: {card.text[:150]}")
+else:
+    other_cards = soup.find_all('div', class_='BpkTicket_container__')
+    if other_cards:
+        print(f"Alternatif class ile {len(other_cards)} kart bulundu!")
+        for i, card in enumerate(other_cards[:5]):
+            print(f"Alternatif Kart {i+1}: {card.text[:150]}")
+    else:
+        print("Hiçbir kart bulunamadı. HTML'yi manuel kontrol et.")
+
+driver.quit()
